@@ -13,6 +13,62 @@ ssh user1@95.174.92.149
 ssh-keygen -R 95.174.92.149
 type C:\Users\asv\.ssh\id_rsa.pub
 
+# nginx.conf
+
+```
+events {
+    worker_connections 1024;
+}
+
+http {
+    upstream react {
+        server react:80;
+    }
+    
+    upstream api {
+        server api:5000;
+    }
+    
+    client_max_body_size 100M;
+
+    server {
+        listen 80;
+        server_name localhost;
+        
+        location /api/ {
+            proxy_pass http://api;
+            # proxy_set_header Host $host;
+            # proxy_set_header X-Real-IP $remote_addr;
+            # proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            # proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location / {
+            proxy_pass http://react;
+            # proxy_set_header Host $host;
+            # proxy_set_header X-Real-IP $remote_addr;
+            # proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            # proxy_set_header X-Forwarded-Proto $scheme;
+            
+            # # Важно для SPA - перенаправляем все запросы на index.html
+            # proxy_set_header X-Original-URI $request_uri;
+        }
+        
+
+    }
+}
+```
+
+# dockerfile nginx
+
+```
+FROM nginx:alpine
+COPY ./loadbalancer/nginx.conf /etc/nginx/nginx.conf
+EXPOSE 80 443
+CMD ["nginx", "-g", "daemon off;"]
+
+```
+
 # dockerfile react nginx
 
 ```
