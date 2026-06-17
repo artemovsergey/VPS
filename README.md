@@ -54,3 +54,56 @@ ENV PORT=3000
 CMD ["node", "server.js"]
 
 ```
+
+# docker compose next .net pg
+
+```
+networks:
+  home-network:
+    driver: bridge
+
+volumes:
+    postgres_data:
+
+services:
+  next:
+    container_name: ContainerNext
+    build:
+      context: ./school.next
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+    ports:
+      - 80:3000 
+    networks:
+      - home-network   
+  api:
+    container_name: ContainerAPI
+    build:
+      context: .
+      dockerfile: PodlesnoeSchoolApp.API/Dockerfile
+    ports:
+      - 5001:5000
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:5000
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=PodlesnoeAppDatabase;Username=postgres;Password=root 
+    depends_on:
+      - db
+    networks:
+      - home-network
+  db:
+    container_name: ContainerPostgreSQL
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: PodlesnoeAppDatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - home-network    
+   
+```
