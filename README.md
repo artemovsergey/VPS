@@ -13,8 +13,38 @@ ssh user1@95.174.92.149
 ssh-keygen -R 95.174.92.149
 type C:\Users\asv\.ssh\id_rsa.pub
 
+# dockerfile react nginx
 
-# Dockerfile Next
+```
+FROM node:22-alpine AS build
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm ci
+
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+# Копируем сборку
+COPY --from=build /app/dist /usr/share/nginx/html
+# Создаем конфиг Nginx
+RUN echo 'server { \
+    listen 80; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+```
+
+
+# dockerfile next
 
 ```
 FROM node:22-alpine AS base
@@ -120,3 +150,78 @@ docker system prune -a --volumes
 `sudo chmod -R 777 ./uploads`
 
 всегда создавайте папки для монтирования от текущего пользователя, а не от root
+
+
+# docker compose react .net pg nginx
+```
+networks:
+  home-network:
+    driver: bridge
+
+volumes:
+    postgres_data:
+    # uploads_data:
+
+services:
+  nginx:
+    container_name: ContainerNginx
+    build: 
+      context: .
+      dockerfile: loadbalancer/Dockerfile
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    links:
+      - api
+      - react
+    depends_on:
+      - db
+      - api
+      - react
+    networks:
+      - home-network 
+  react:
+    container_name: ContainerReact
+    build:
+      context: ./lokovapp.react
+      dockerfile: Dockerfile
+    environment:
+      NODE_ENV: production
+    ports:
+      - 3001:80 
+    networks:
+      - home-network   
+  api:
+    container_name: ContainerAPI
+    image: lokovapp
+    build:
+      context: .
+      dockerfile: LokovApp/Dockerfile
+    ports:
+      - 5001:5000
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://0.0.0.0:5000
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=LokovAppDatabase;Username=postgres;Password=root
+    volumes:
+      - ./uploads:/app/uploads   # ← bind mount (точка слеш)
+    depends_on:
+      - db
+    networks:
+      - home-network
+  db:
+    container_name: ContainerPostgres
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: root
+      POSTGRES_DB: LokovAppDatabase
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - home-network    
+   
+```
